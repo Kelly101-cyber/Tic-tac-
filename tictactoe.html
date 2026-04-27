@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRID // Tic Tac Toe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  /* =========================================
+     CSS CUSTOM PROPERTIES & RESET
+  ========================================= */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-deep:       #040608;
+    --bg-mid:        #080c12;
+    --bg-panel:      rgba(12, 18, 30, 0.85);
+    --glass-border:  rgba(80, 180, 255, 0.12);
+    --glass-shine:   rgba(120, 200, 255, 0.06);
+    --neon-x:        #00e5ff;
+    --neon-o:        #ff4da6;
+    --neon-win:      #ffe066;
+    --text-primary:  #e8f4ff;
+    --text-muted:    rgba(180, 210, 240, 0.5);
+    --text-dim:      rgba(100, 140, 180, 0.4);
+    --grid-line:     rgba(60, 120, 200, 0.2);
+    --cell-bg:       rgba(10, 20, 40, 0.6);
+    --cell-hover-bg: rgba(20, 50, 90, 0.5);
+    --shadow-x:      0 0 20px rgba(0, 229, 255, 0.4);
+    --shadow-o:      0 0 20px rgba(255, 77, 166, 0.4);
+    --shadow-win:    0 0 30px rgba(255, 224, 102, 0.6);
+    --transition:    cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  html, body {
+    height: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    font-family: 'Rajdhani', sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 20px 16px 40px;
+    position: relative;
+  }
+
+  /* =========================================
+     BACKGROUND ATMOSPHERE
+  ========================================= */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 20% 20%, rgba(0, 100, 200, 0.08) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 60% at 80% 80%, rgba(180, 0, 120, 0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 40% at 50% 50%, rgba(0, 50, 100, 0.05) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Animated grid background */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(30, 80, 160, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(30, 80, 160, 0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+    animation: gridShift 30s linear infinite;
+  }
+
+  @keyframes gridShift {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(40px, 40px); }
+  }
+
+  /* =========================================
+     LAYOUT WRAPPER
+  ========================================= */
+  .app {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  /* =========================================
+     HEADER
+  ========================================= */
+  .header {
+    text-align: center;
+    padding: 8px 0;
+  }
+
+  .header h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(22px, 6vw, 32px);
+    font-weight: 900;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, #00e5ff 0%, #a0d8ff 40%, #ff4da6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 20px rgba(0, 200, 255, 0.3));
+  }
+
+  .header .subtitle {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  /* =========================================
+     GLASS PANEL BASE
+  ========================================= */
+  .glass {
+    background: var(--bg-panel);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow:
+      0 4px 24px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 var(--glass-shine);
+    width: 100%;
+  }
+
+  /* =========================================
+     MODE SELECTOR
+  ========================================= */
+  .mode-panel {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .mode-panel .label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.35em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .mode-tabs {
+    display: flex;
+    gap: 8px;
+  }
+
+  .mode-tab {
+    flex: 1;
+    padding: 10px 8px;
+    background: rgba(10, 20, 40, 0.6);
+    border: 1px solid rgba(60, 120, 200, 0.15);
+    border-radius: 10px;
+    color: var(--text-muted);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.25s var(--transition);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mode-tab::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0, 229, 255, 0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+
+  .mode-tab:hover::before { opacity: 1; }
+  .mode-tab:hover { border-color: rgba(0, 229, 255, 0.3); color: var(--text-primary); }
+
+  .mode-tab.active {
+    background: rgba(0, 100, 200, 0.2);
+    border-color: rgba(0, 229, 255, 0.5);
+    color: var(--neon-x);
+    box-shadow: 0 0 12px rgba(0, 180, 255, 0.15), inset 0 0 12px rgba(0, 100, 200, 0.1);
+  }
+
+  /* Difficulty selector */
+  .difficulty-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    animation: fadeSlideIn 0.3s var(--transition) both;
+  }
+
+  .difficulty-row.hidden { display: none; }
+
+  .diff-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    white-space: nowrap;
+    margin-right: 4px;
+  }
+
+  .diff-btn {
+    flex: 1;
+    padding: 7px 6px;
+    background: rgba(10, 20, 40, 0.6);
+    border: 1px solid rgba(60, 120, 200, 0.12);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s var(--transition);
+  }
+
+  .diff-btn:hover { border-color: rgba(0, 229, 255, 0.25); color: var(--text-primary); }
+
+  .diff-btn.active {
+    background: rgba(0, 60, 120, 0.35);
+    border-color: rgba(0, 229, 255, 0.4);
+    color: var(--neon-x);
+  }
+
+  /* =========================================
+     PLAYER INDICATOR
+  ========================================= */
+  .player-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .player-indicator::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--neon-x), transparent);
+    opacity: 0.4;
+    transition: all 0.4s var(--transition);
+  }
+
+  .player-indicator.o-turn::before {
+    background: linear-gradient(90deg, transparent, var(--neon-o), transparent);
+  }
+
+  .player-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+  }
+
+  .player-slot .role {
+    font-family: 'Space Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.3em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .player-slot .symbol {
+    font-family: 'Orbitron', monospace;
+    font-size: 28px;
+    font-weight: 900;
+    transition: all 0.3s var(--transition);
+    filter: brightness(0.6);
+  }
+
+  .player-slot.active .symbol {
+    filter: brightness(1);
+    transform: scale(1.1);
+  }
+
+  .player-slot:first-child .symbol { color: var(--neon-x); }
+  .player-slot:last-child .symbol { color: var(--neon-o); }
+
+  .player-slot:first-child.active .symbol { text-shadow: var(--shadow-x); }
+  .player-slot:last-child.active .symbol { text-shadow: var(--shadow-o); }
+
+  .status-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    flex: 1.5;
+  }
+
+  .status-text {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-primary);
+    text-align: center;
+    transition: all 0.3s var(--transition);
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--neon-x);
+    box-shadow: 0 0 8px var(--neon-x);
+    animation: pulse 1.5s ease-in-out infinite;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+
+  .o-turn .status-dot {
+    background: var(--neon-o);
+    box-shadow: 0 0 8px var(--neon-o);
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.7); }
+  }
+
+  /* =========================================
+     PLAYER NAME INPUTS
+  ========================================= */
+  .player-slot .name-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .player-slot .player-name {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-align: center;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    outline: none;
+    width: 80px;
+    padding: 1px 2px;
+    transition: all 0.25s var(--transition);
+    cursor: text;
+  }
+
+  .player-slot.active .player-name { color: var(--text-primary); }
+
+  .player-slot:first-child .player-name:focus {
+    border-bottom-color: var(--neon-x);
+    color: var(--neon-x);
+  }
+
+  .player-slot:last-child .player-name:focus {
+    border-bottom-color: var(--neon-o);
+    color: var(--neon-o);
+  }
+
+  .player-slot .player-name::placeholder { color: var(--text-dim); }
+
+  /* pencil icon hint */
+  .player-slot .name-wrap::after {
+    content: '✎';
+    position: absolute;
+    right: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 9px;
+    color: var(--text-dim);
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+  }
+
+  .player-slot:hover .name-wrap::after { opacity: 1; }
+
+  /* hide edit hint in AI mode for O slot */
+  .player-slot.ai-slot .name-wrap::after { display: none; }
+  .player-slot.ai-slot .player-name { cursor: default; pointer-events: none; }
+
+  /* =========================================
+     GAME BOARD
+  ========================================= */
+  .board-container {
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    width: 100%;
+    max-width: 340px;
+    position: relative;
+  }
+
+  .cell {
+    aspect-ratio: 1;
+    background: var(--cell-bg);
+    border: 1px solid var(--grid-line);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s var(--transition);
+    user-select: none;
+  }
+
+  .cell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 0%, rgba(0, 120, 255, 0.06), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .cell:hover:not(.taken) {
+    background: var(--cell-hover-bg);
+    border-color: rgba(0, 180, 255, 0.3);
+    transform: scale(1.03);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .cell:hover:not(.taken)::before { opacity: 1; }
+
+  .cell:active:not(.taken) { transform: scale(0.96); }
+
+  .cell.taken { cursor: default; }
+
+  .cell.winning {
+    background: rgba(255, 200, 0, 0.05);
+    border-color: rgba(255, 224, 102, 0.5);
+    box-shadow: var(--shadow-win), inset 0 0 20px rgba(255, 200, 0, 0.05);
+    animation: winCellPulse 1s ease-in-out infinite alternate;
+  }
+
+  @keyframes winCellPulse {
+    from { box-shadow: var(--shadow-win), inset 0 0 20px rgba(255, 200, 0, 0.05); }
+    to   { box-shadow: 0 0 50px rgba(255, 224, 102, 0.4), inset 0 0 30px rgba(255, 200, 0, 0.1); }
+  }
+
+  /* SVG symbol inside cell */
+  .cell-symbol {
+    width: 55%;
+    height: 55%;
+    position: relative;
+    z-index: 1;
+  }
+
+  .cell-symbol svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  /* X strokes */
+  .x-stroke {
+    stroke: var(--neon-x);
+    stroke-width: 5;
+    stroke-linecap: round;
+    fill: none;
+    filter: drop-shadow(0 0 6px var(--neon-x));
+    stroke-dasharray: 60;
+    stroke-dashoffset: 60;
+    animation: drawStroke 0.35s var(--transition) forwards;
+  }
+
+  .x-stroke:nth-child(2) {
+    animation-delay: 0.1s;
+  }
+
+  /* O circle */
+  .o-circle {
+    stroke: var(--neon-o);
+    stroke-width: 5;
+    stroke-linecap: round;
+    fill: none;
+    filter: drop-shadow(0 0 6px var(--neon-o));
+    stroke-dasharray: 200;
+    stroke-dashoffset: 200;
+    animation: drawCircle 0.4s var(--transition) forwards;
+  }
+
+  @keyframes drawStroke {
+    to { stroke-dashoffset: 0; }
+  }
+
+  @keyframes drawCircle {
+    to { stroke-dashoffset: 0; }
+  }
+
+  /* Preview symbol on hover */
+  .cell:not(.taken):hover .preview-symbol { opacity: 0.15; }
+  .preview-symbol { opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+
+  /* =========================================
+     SCOREBOARD
+  ========================================= */
+  .scoreboard {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .score-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .score-header .label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.35em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .reset-scores-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    background: none;
+    border: 1px solid rgba(80, 120, 180, 0.15);
+    border-radius: 4px;
+    padding: 3px 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .reset-scores-btn:hover { color: var(--neon-x); border-color: rgba(0, 229, 255, 0.3); }
+
+  .score-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .score-card {
+    flex: 1;
+    background: rgba(10, 20, 40, 0.6);
+    border: 1px solid var(--grid-line);
+    border-radius: 10px;
+    padding: 12px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.3s var(--transition);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .score-card::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    opacity: 0.6;
+    transition: opacity 0.3s;
+  }
+
+  .score-card.x-card::before { background: var(--neon-x); }
+  .score-card.o-card::before { background: var(--neon-o); }
+  .score-card.d-card::before { background: var(--text-muted); }
+
+  .score-card .score-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .score-card .score-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 26px;
+    font-weight: 700;
+    transition: all 0.3s var(--transition);
+  }
+
+  .score-card.x-card .score-value { color: var(--neon-x); }
+  .score-card.o-card .score-value { color: var(--neon-o); }
+  .score-card.d-card .score-value { color: var(--text-muted); }
+
+  .score-card.bump .score-value { animation: scoreBump 0.4s var(--transition); }
+
+  @keyframes scoreBump {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.35); }
+    100% { transform: scale(1); }
+  }
+
+  /* =========================================
+     CONTROLS
+  ========================================= */
+  .controls {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 14px 20px;
+    border-radius: 12px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.25s var(--transition);
+    position: relative;
+    overflow: hidden;
+    border: none;
+  }
+
+  .btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .btn:hover::before { opacity: 1; }
+
+  .btn-primary {
+    background: linear-gradient(135deg, rgba(0, 100, 200, 0.6), rgba(0, 60, 140, 0.8));
+    border: 1px solid rgba(0, 229, 255, 0.35);
+    color: var(--neon-x);
+    box-shadow: 0 4px 20px rgba(0, 100, 200, 0.2);
+  }
+
+  .btn-primary::before {
+    background: linear-gradient(135deg, rgba(0, 180, 255, 0.1), transparent);
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 6px 30px rgba(0, 180, 255, 0.3);
+    border-color: rgba(0, 229, 255, 0.6);
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:active { transform: translateY(1px); }
+
+  .btn-secondary {
+    background: rgba(10, 20, 40, 0.6);
+    border: 1px solid var(--grid-line);
+    color: var(--text-muted);
+    flex: 0 0 auto;
+    padding: 14px 16px;
+  }
+
+  .btn-secondary:hover {
+    border-color: rgba(255, 77, 166, 0.35);
+    color: var(--neon-o);
+    box-shadow: 0 4px 20px rgba(255, 77, 166, 0.1);
+    transform: translateY(-1px);
+  }
+
+  /* =========================================
+     RESULT OVERLAY
+  ========================================= */
+  .result-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    background: rgba(4, 6, 8, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s var(--transition);
+    z-index: 10;
+  }
+
+  .result-overlay.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .result-emoji {
+    font-size: 48px;
+    animation: resultBounce 0.5s var(--transition) both;
+    filter: drop-shadow(0 0 20px rgba(255, 224, 102, 0.5));
+  }
+
+  .result-title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(18px, 5vw, 26px);
+    font-weight: 900;
+    letter-spacing: 0.2em;
+    background: linear-gradient(135deg, var(--neon-win), #ffb347);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: resultBounce 0.5s var(--transition) 0.05s both;
+    text-align: center;
+  }
+
+  .result-sub {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.2em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    animation: resultBounce 0.5s var(--transition) 0.1s both;
+  }
+
+  .result-play-btn {
+    margin-top: 8px;
+    padding: 10px 28px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(255, 200, 0, 0.2), rgba(255, 140, 0, 0.1));
+    border: 1px solid rgba(255, 220, 80, 0.4);
+    color: var(--neon-win);
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.25s var(--transition);
+    animation: resultBounce 0.5s var(--transition) 0.15s both;
+  }
+
+  .result-play-btn:hover {
+    background: linear-gradient(135deg, rgba(255, 200, 0, 0.35), rgba(255, 140, 0, 0.2));
+    box-shadow: 0 0 20px rgba(255, 200, 0, 0.25);
+    transform: scale(1.05);
+  }
+
+  @keyframes resultBounce {
+    from { opacity: 0; transform: translateY(12px) scale(0.9); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* =========================================
+     THINKING INDICATOR
+  ========================================= */
+  .thinking-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    color: var(--neon-o);
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 0.3s;
+    height: 16px;
+  }
+
+  .thinking-indicator.visible { opacity: 1; }
+
+  .thinking-dots {
+    display: flex;
+    gap: 4px;
+  }
+
+  .thinking-dots span {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--neon-o);
+    animation: thinkDot 1.2s ease-in-out infinite;
+  }
+
+  .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes thinkDot {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  /* =========================================
+     FOOTER
+  ========================================= */
+  .footer {
+    font-family: 'Space Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.3em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    text-align: center;
+    padding-top: 4px;
+  }
+
+  /* =========================================
+     ANIMATIONS
+  ========================================= */
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .app { animation: fadeSlideIn 0.6s var(--transition) both; }
+
+  /* =========================================
+     RESPONSIVE
+  ========================================= */
+  @media (max-width: 400px) {
+    body { padding: 12px 10px 30px; }
+    .board { gap: 8px; }
+    .cell { border-radius: 10px; }
+    .score-card .score-value { font-size: 22px; }
+  }
+
+  @media (min-width: 600px) {
+    .app { max-width: 440px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <h1>GRID</h1>
+    <div class="subtitle">Tactical Board // Two Player</div>
+  </div>
+
+  <!-- MODE SELECTOR -->
+  <div class="glass mode-panel">
+    <div class="label">Game Mode</div>
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="pvp">⚔ VS Player</button>
+      <button class="mode-tab" data-mode="ai">◈ VS AI</button>
+    </div>
+    <div class="difficulty-row hidden" id="difficultyRow">
+      <span class="diff-label">AI Level</span>
+      <button class="diff-btn active" data-diff="easy">Easy</button>
+      <button class="diff-btn" data-diff="medium">Mid</button>
+      <button class="diff-btn" data-diff="hard">Hard</button>
+    </div>
+  </div>
+
+  <!-- PLAYER INDICATOR -->
+  <div class="glass player-indicator" id="playerIndicator">
+    <div class="player-slot active" id="slotX">
+      <div class="name-wrap">
+        <input class="player-name" id="nameX" type="text" maxlength="12" placeholder="Player X" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="symbol">X</div>
+    </div>
+    <div class="status-center">
+      <div class="status-text" id="statusText">Your Turn</div>
+      <div class="status-dot"></div>
+      <div class="thinking-indicator" id="thinkingIndicator">
+        <span>AI</span>
+        <div class="thinking-dots">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
+    <div class="player-slot" id="slotO">
+      <div class="name-wrap">
+        <input class="player-name" id="nameO" type="text" maxlength="12" placeholder="Player O" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="symbol">O</div>
+    </div>
+  </div>
+
+  <!-- GAME BOARD -->
+  <div class="glass board-container">
+    <div class="board" id="board">
+      <!-- Cells generated by JS -->
+    </div>
+    <!-- Result Overlay -->
+    <div class="result-overlay" id="resultOverlay">
+      <div class="result-emoji" id="resultEmoji">🏆</div>
+      <div class="result-title" id="resultTitle">Player X Wins!</div>
+      <div class="result-sub" id="resultSub">Excellent play</div>
+      <button class="result-play-btn" id="resultPlayBtn">↺ Play Again</button>
+    </div>
+  </div>
+
+  <!-- SCOREBOARD -->
+  <div class="glass scoreboard">
+    <div class="score-header">
+      <div class="label">Scoreboard</div>
+      <button class="reset-scores-btn" id="resetScoresBtn">Reset</button>
+    </div>
+    <div class="score-row">
+      <div class="score-card x-card">
+        <div class="score-label" id="xLabel">X Wins</div>
+        <div class="score-value" id="scoreX">0</div>
+      </div>
+      <div class="score-card d-card">
+        <div class="score-label">Draws</div>
+        <div class="score-value" id="scoreD">0</div>
+      </div>
+      <div class="score-card o-card">
+        <div class="score-label" id="oLabel">O Wins</div>
+        <div class="score-value" id="scoreO">0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <button class="btn btn-primary" id="newGameBtn">↺ New Game</button>
+    <button class="btn btn-secondary" id="undoBtn" title="Undo last move">⟵</button>
+  </div>
+
+  <div class="footer">GRID v2.0 // Minimax AI // Local Session</div>
+</div>
+
+<script>
+/* =========================================
+   AUDIO ENGINE (Web Audio API)
+========================================= */
+const AudioEngine = (() => {
+  let ctx = null;
+  const init = () => { if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); };
+
+  const play = (type) => {
+    try {
+      init();
+      if (ctx.state === 'suspended') ctx.resume();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      const now = ctx.currentTime;
+
+      if (type === 'click') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.exponentialRampToValueAtTime(300, now + 0.08);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      } else if (type === 'win') {
+        [0, 0.12, 0.24].forEach((t, i) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.type = 'sine';
+          o.frequency.setValueAtTime([523, 659, 784][i], now + t);
+          g.gain.setValueAtTime(0.12, now + t);
+          g.gain.exponentialRampToValueAtTime(0.001, now + t + 0.25);
+          o.start(now + t);
+          o.stop(now + t + 0.25);
+        });
+      } else if (type === 'draw') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(350, now);
+        osc.frequency.exponentialRampToValueAtTime(220, now + 0.3);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      } else if (type === 'aiMove') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(280, now);
+        osc.frequency.exponentialRampToValueAtTime(220, now + 0.1);
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      }
+    } catch(e) {}
+  };
+
+  return { play };
+})();
+
+/* =========================================
+   GAME STATE
+========================================= */
+const WIN_COMBOS = [
+  [0,1,2],[3,4,5],[6,7,8], // rows
+  [0,3,6],[1,4,7],[2,5,8], // cols
+  [0,4,8],[2,4,6]          // diags
+];
+
+let state = {
+  board: Array(9).fill(null),
+  currentPlayer: 'X',
+  gameOver: false,
+  winner: null,
+  winCombo: null,
+  mode: 'pvp',       // pvp | ai
+  difficulty: 'easy',
+  scores: { X: 0, O: 0, D: 0 },
+  history: [],       // array of board snapshots for undo
+  aiThinking: false,
+  names: { X: '', O: '' },  // custom player names
+};
+
+// Helper: get display name for a player
+const getName = (player) => {
+  if (player === 'O' && state.mode === 'ai') return 'AI';
+  return state.names[player] || `Player ${player}`;
+};
+
+/* =========================================
+   PERSISTENCE (localStorage)
+========================================= */
+const saveScores = () => {
+  localStorage.setItem('grid_scores', JSON.stringify(state.scores));
+};
+
+const loadScores = () => {
+  const s = localStorage.getItem('grid_scores');
+  if (s) state.scores = JSON.parse(s);
+};
+
+const saveNames = () => {
+  localStorage.setItem('grid_names', JSON.stringify(state.names));
+};
+
+const loadNames = () => {
+  const n = localStorage.getItem('grid_names');
+  if (n) state.names = JSON.parse(n);
+};
+
+/* =========================================
+   DOM REFERENCES
+========================================= */
+const boardEl = document.getElementById('board');
+const playerIndicatorEl = document.getElementById('playerIndicator');
+const slotX = document.getElementById('slotX');
+const slotO = document.getElementById('slotO');
+const nameXInput = document.getElementById('nameX');
+const nameOInput = document.getElementById('nameO');
+const statusTextEl = document.getElementById('statusText');
+const thinkingEl = document.getElementById('thinkingIndicator');
+const resultOverlay = document.getElementById('resultOverlay');
+const resultEmoji = document.getElementById('resultEmoji');
+const resultTitle = document.getElementById('resultTitle');
+const resultSub = document.getElementById('resultSub');
+const resultPlayBtn = document.getElementById('resultPlayBtn');
+const scoreXEl = document.getElementById('scoreX');
+const scoreOEl = document.getElementById('scoreO');
+const scoreDEl = document.getElementById('scoreD');
+const xLabelEl = document.getElementById('xLabel');
+const oLabelEl = document.getElementById('oLabel');
+const newGameBtn = document.getElementById('newGameBtn');
+const undoBtn = document.getElementById('undoBtn');
+const resetScoresBtn = document.getElementById('resetScoresBtn');
+const modeTabs = document.querySelectorAll('.mode-tab');
+const diffRow = document.getElementById('difficultyRow');
+const diffBtns = document.querySelectorAll('.diff-btn');
+
+/* =========================================
+   RENDER BOARD
+========================================= */
+const renderBoard = () => {
+  boardEl.innerHTML = '';
+  state.board.forEach((val, idx) => {
+    const cell = document.createElement('div');
+    cell.className = 'cell' + (val ? ' taken' : '');
+    if (state.winCombo && state.winCombo.includes(idx)) cell.classList.add('winning');
+    cell.dataset.idx = idx;
+
+    if (val) {
+      cell.appendChild(createSymbol(val));
+    } else if (!state.gameOver) {
+      // Preview ghost symbol
+      const preview = document.createElement('div');
+      preview.className = 'cell-symbol preview-symbol';
+      preview.appendChild(createSymbolSVG(state.currentPlayer, 0.3));
+      cell.appendChild(preview);
+    }
+
+    if (!val && !state.gameOver && !state.aiThinking) {
+      cell.addEventListener('click', () => handleCellClick(idx));
+    }
+
+    boardEl.appendChild(cell);
+  });
+};
+
+const createSymbol = (player) => {
+  const wrap = document.createElement('div');
+  wrap.className = 'cell-symbol';
+  wrap.appendChild(createSymbolSVG(player, 1));
+  return wrap;
+};
+
+const createSymbolSVG = (player, opacity) => {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 50 50');
+  svg.style.opacity = opacity;
+
+  if (player === 'X') {
+    const l1 = document.createElementNS(ns, 'line');
+    l1.setAttribute('x1', '8'); l1.setAttribute('y1', '8');
+    l1.setAttribute('x2', '42'); l1.setAttribute('y2', '42');
+    l1.setAttribute('class', 'x-stroke');
+
+    const l2 = document.createElementNS(ns, 'line');
+    l2.setAttribute('x1', '42'); l2.setAttribute('y1', '8');
+    l2.setAttribute('x2', '8'); l2.setAttribute('y2', '42');
+    l2.setAttribute('class', 'x-stroke');
+
+    svg.appendChild(l1);
+    svg.appendChild(l2);
+  } else {
+    const c = document.createElementNS(ns, 'circle');
+    c.setAttribute('cx', '25'); c.setAttribute('cy', '25'); c.setAttribute('r', '17');
+    c.setAttribute('class', 'o-circle');
+    svg.appendChild(c);
+  }
+  return svg;
+};
+
+/* =========================================
+   UPDATE PLAYER INDICATOR
+========================================= */
+const updateIndicator = () => {
+  if (state.gameOver) return;
+
+  const isXTurn = state.currentPlayer === 'X';
+  playerIndicatorEl.classList.toggle('o-turn', !isXTurn);
+  slotX.classList.toggle('active', isXTurn);
+  slotO.classList.toggle('active', !isXTurn);
+
+  if (state.aiThinking) {
+    statusTextEl.textContent = 'Thinking…';
+    thinkingEl.classList.add('visible');
+  } else {
+    thinkingEl.classList.remove('visible');
+    const name = getName(state.currentPlayer);
+    if (state.mode === 'ai') {
+      statusTextEl.textContent = isXTurn ? `${name}'s Turn` : 'AI Turn';
+    } else {
+      statusTextEl.textContent = `${name}'s Turn`;
+    }
+  }
+};
+
+/* =========================================
+   CHECK WIN / DRAW
+========================================= */
+const checkWin = (board, player) => {
+  for (const combo of WIN_COMBOS) {
+    if (combo.every(i => board[i] === player)) return combo;
+  }
+  return null;
+};
+
+const checkDraw = (board) => board.every(cell => cell !== null);
+
+/* =========================================
+   HANDLE CELL CLICK
+========================================= */
+const handleCellClick = (idx) => {
+  if (state.board[idx] || state.gameOver || state.aiThinking) return;
+
+  // Save snapshot for undo
+  state.history.push([...state.board]);
+
+  state.board[idx] = state.currentPlayer;
+  AudioEngine.play('click');
+  renderBoard();
+
+  const winCombo = checkWin(state.board, state.currentPlayer);
+  if (winCombo) {
+    endGame('win', state.currentPlayer, winCombo);
+    return;
+  }
+  if (checkDraw(state.board)) {
+    endGame('draw');
+    return;
+  }
+
+  // Switch player
+  state.currentPlayer = state.currentPlayer === 'X' ? 'O' : 'X';
+  updateIndicator();
+
+  // AI move
+  if (state.mode === 'ai' && state.currentPlayer === 'O') {
+    triggerAIMove();
+  }
+};
+
+/* =========================================
+   END GAME
+========================================= */
+const endGame = (result, winner = null, winCombo = null) => {
+  state.gameOver = true;
+  state.winner = winner;
+  state.winCombo = winCombo;
+
+  renderBoard();
+  thinkingEl.classList.remove('visible');
+
+  if (result === 'win') {
+    state.scores[winner]++;
+    AudioEngine.play('win');
+    const winName = getName(winner);
+    resultEmoji.textContent = winner === 'X' ? '🏆' : (state.mode === 'ai' ? '🤖' : '🏆');
+    resultTitle.textContent = `${winName} Wins!`;
+    resultSub.textContent = ['Flawless!', 'Brilliant!', 'Dominant!', 'Outstanding!'][Math.floor(Math.random() * 4)];
+  } else {
+    state.scores.D++;
+    AudioEngine.play('draw');
+    resultEmoji.textContent = '🤝';
+    resultTitle.textContent = 'It\'s a Draw!';
+    resultSub.textContent = 'Well matched.';
+  }
+
+  saveScores();
+  updateScoreboard(result === 'win' ? winner : 'D');
+  showResult();
+};
+
+/* =========================================
+   SHOW/HIDE RESULT OVERLAY
+========================================= */
+const showResult = () => {
+  resultOverlay.classList.add('visible');
+};
+
+const hideResult = () => {
+  resultOverlay.classList.remove('visible');
+};
+
+/* =========================================
+   SCOREBOARD UPDATE
+========================================= */
+const updateScoreboard = (bump = null) => {
+  scoreXEl.textContent = state.scores.X;
+  scoreOEl.textContent = state.scores.O;
+  scoreDEl.textContent = state.scores.D;
+
+  if (bump) {
+    const cards = { X: scoreXEl, O: scoreOEl, D: scoreDEl };
+    const el = cards[bump];
+    if (el) {
+      el.classList.remove('bump');
+      void el.offsetWidth;
+      el.classList.add('bump');
+    }
+  }
+
+  // Use custom names in scoreboard labels (truncated)
+  const xName = state.names.X || 'Player X';
+  const oName = state.mode === 'ai' ? 'AI' : (state.names.O || 'Player O');
+  xLabelEl.textContent = xName.length > 8 ? xName.slice(0, 7) + '…' : xName;
+  oLabelEl.textContent = oName.length > 8 ? oName.slice(0, 7) + '…' : oName;
+};
+
+/* =========================================
+   NEW GAME
+========================================= */
+const newGame = () => {
+  hideResult();
+  state.board = Array(9).fill(null);
+  state.gameOver = false;
+  state.winner = null;
+  state.winCombo = null;
+  state.currentPlayer = 'X';
+  state.history = [];
+  state.aiThinking = false;
+  renderBoard();
+  updateIndicator();
+};
+
+/* =========================================
+   UNDO
+========================================= */
+const undoMove = () => {
+  if (state.gameOver || state.history.length === 0 || state.aiThinking) return;
+
+  // In AI mode, undo 2 moves (player + AI)
+  const stepsBack = (state.mode === 'ai' && state.history.length >= 2) ? 2 : 1;
+  for (let i = 0; i < stepsBack; i++) {
+    if (state.history.length > 0) {
+      state.board = state.history.pop();
+      state.currentPlayer = state.currentPlayer === 'X' ? 'O' : 'X';
+    }
+  }
+
+  state.gameOver = false;
+  state.winner = null;
+  state.winCombo = null;
+  hideResult();
+  renderBoard();
+  updateIndicator();
+};
+
+/* =========================================
+   AI ENGINE
+========================================= */
+const triggerAIMove = () => {
+  state.aiThinking = true;
+  updateIndicator();
+  renderBoard();
+
+  const delay = { easy: 400, medium: 600, hard: 700 }[state.difficulty];
+
+  setTimeout(() => {
+    const move = getAIMove(state.board, state.difficulty);
+    if (move !== -1) {
+      state.history.push([...state.board]);
+      state.board[move] = 'O';
+      AudioEngine.play('aiMove');
+      state.currentPlayer = 'X';
+      state.aiThinking = false;
+
+      renderBoard();
+
+      const winCombo = checkWin(state.board, 'O');
+      if (winCombo) {
+        endGame('win', 'O', winCombo);
+        return;
+      }
+      if (checkDraw(state.board)) {
+        endGame('draw');
+        return;
+      }
+    } else {
+      state.aiThinking = false;
+    }
+    updateIndicator();
+  }, delay);
+};
+
+const getAIMove = (board, difficulty) => {
+  const empty = board.reduce((a, v, i) => v === null ? [...a, i] : a, []);
+  if (empty.length === 0) return -1;
+
+  if (difficulty === 'easy') {
+    return empty[Math.floor(Math.random() * empty.length)];
+  }
+
+  if (difficulty === 'medium') {
+    // 50% chance to use smart move
+    if (Math.random() < 0.5) {
+      return smartMove(board) ?? empty[Math.floor(Math.random() * empty.length)];
+    }
+    return empty[Math.floor(Math.random() * empty.length)];
+  }
+
+  // Hard — minimax
+  return minimaxMove(board);
+};
+
+// Smart move: win if can, block if can
+const smartMove = (board) => {
+  // Try to win
+  for (const idx of board.reduce((a, v, i) => v === null ? [...a, i] : a, [])) {
+    const test = [...board];
+    test[idx] = 'O';
+    if (checkWin(test, 'O')) return idx;
+  }
+  // Try to block
+  for (const idx of board.reduce((a, v, i) => v === null ? [...a, i] : a, [])) {
+    const test = [...board];
+    test[idx] = 'X';
+    if (checkWin(test, 'X')) return idx;
+  }
+  // Center
+  if (board[4] === null) return 4;
+  return null;
+};
+
+// Full minimax (unbeatable)
+const minimaxMove = (board) => {
+  let bestScore = -Infinity;
+  let bestMove = -1;
+  for (let i = 0; i < 9; i++) {
+    if (board[i] === null) {
+      board[i] = 'O';
+      const score = minimax(board, 0, false, -Infinity, Infinity);
+      board[i] = null;
+      if (score > bestScore) { bestScore = score; bestMove = i; }
+    }
+  }
+  return bestMove;
+};
+
+const minimax = (board, depth, isMax, alpha, beta) => {
+  if (checkWin(board, 'O')) return 10 - depth;
+  if (checkWin(board, 'X')) return depth - 10;
+  const empty = board.filter(v => v === null);
+  if (empty.length === 0) return 0;
+
+  if (isMax) {
+    let best = -Infinity;
+    for (let i = 0; i < 9; i++) {
+      if (board[i] === null) {
+        board[i] = 'O';
+        best = Math.max(best, minimax(board, depth + 1, false, alpha, beta));
+        board[i] = null;
+        alpha = Math.max(alpha, best);
+        if (beta <= alpha) break;
+      }
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (let i = 0; i < 9; i++) {
+      if (board[i] === null) {
+        board[i] = 'X';
+        best = Math.min(best, minimax(board, depth + 1, true, alpha, beta));
+        board[i] = null;
+        beta = Math.min(beta, best);
+        if (beta <= alpha) break;
+      }
+    }
+    return best;
+  }
+};
+
+/* =========================================
+   EVENT LISTENERS
+========================================= */
+modeTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    modeTabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    state.mode = tab.dataset.mode;
+    diffRow.classList.toggle('hidden', state.mode !== 'ai');
+
+    // In AI mode: freeze O name input, show "AI"
+    if (state.mode === 'ai') {
+      slotO.classList.add('ai-slot');
+      nameOInput.value = 'AI';
+      nameOInput.placeholder = 'AI';
+    } else {
+      slotO.classList.remove('ai-slot');
+      nameOInput.value = state.names.O;
+      nameOInput.placeholder = 'Player O';
+    }
+
+    updateScoreboard();
+    newGame();
+  });
+});
+
+diffBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    diffBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.difficulty = btn.dataset.diff;
+    newGame();
+  });
+});
+
+// Name input handlers — update state & persist on every change
+nameXInput.addEventListener('input', () => {
+  state.names.X = nameXInput.value.trim();
+  saveNames();
+  updateScoreboard();
+  updateIndicator();
+});
+
+nameOInput.addEventListener('input', () => {
+  if (state.mode === 'ai') return;
+  state.names.O = nameOInput.value.trim();
+  saveNames();
+  updateScoreboard();
+  updateIndicator();
+});
+
+// Select-all on focus for easy replacement
+[nameXInput, nameOInput].forEach(input => {
+  input.addEventListener('focus', () => input.select());
+  // Blur on Enter
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
+});
+
+newGameBtn.addEventListener('click', newGame);
+resultPlayBtn.addEventListener('click', newGame);
+undoBtn.addEventListener('click', undoMove);
+
+resetScoresBtn.addEventListener('click', () => {
+  state.scores = { X: 0, O: 0, D: 0 };
+  saveScores();
+  updateScoreboard();
+});
+
+/* =========================================
+   INIT
+========================================= */
+loadScores();
+loadNames();
+
+// Populate name inputs from persisted state
+nameXInput.value = state.names.X;
+nameOInput.value = state.names.O;
+
+updateScoreboard();
+newGame();
+</script>
+</body>
+</html>
